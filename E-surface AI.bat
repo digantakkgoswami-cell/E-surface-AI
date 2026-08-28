@@ -1,0 +1,18 @@
+@echo off
+setlocal EnableExtensions
+title Bhagavad Gita - Cheiro / Chaldean Analyzer
+chcp 65001 >nul
+
+powershell.exe -NoProfile -ExecutionPolicy Bypass -Command ^
+"$ErrorActionPreference='Stop'; ^
+$refs=@('1.28','2.2','2.3','2.12','2.13','2.15','2.16','2.17','2.23','2.25','2.44','2.48','2.56','3.5','3.8','4.1','4.2','4.5','4.6','4.7','4.8','4.13','4.14','8.3','8.4','8.5','8.6','8.8','8.9','8.11','8.13','8.14','9.1','9.5','9.6','9.8','9.9','9.10','9.17','9.18','9.30','10.3','10.4','10.5','10.21','10.22','10.23','10.24','10.25','10.26','10.27','10.28','10.29','10.30','10.31','10.32','10.33','10.34','10.35','10.36','10.37','10.38','10.39','10.40','10.41','11.8','11.10','11.11','11.18','11.20','12.2','12.3','12.5','12.9','12.10','12.11','12.12','12.13','12.14','13.6','13.7','13.8','13.9','13.10','13.11','13.12','13.14','13.15','13.16','13.17','13.18','13.24','13.27','13.31','13.33','14.1','14.3','14.4','14.5','14.6','14.7','14.8','14.9','14.10','14.11','14.12','14.13','14.16','14.17','14.19','14.20','14.22','14.23','14.24','14.25','15.1','15.2','15.3','15.4','15.6','15.7','15.9','15.10','15.11','15.12','15.13','15.14','15.15','16.1','16.2','16.3','16.4','16.7','16.9','16.10','16.11','16.12','16.13','16.14','16.15','16.20','16.21','16.22','17.2','17.3','17.8','17.9','17.10','17.11','17.12','17.13','17.16','17.17','17.23','17.24','18.2','18.4','18.5','18.6','18.7','18.8','18.9','18.14','18.17','18.18','18.19','18.20','18.21','18.22','18.23','18.24','18.25','18.26','18.27','18.28','18.37','18.38','18.39','18.40','18.42','18.43','18.44','18.59'); ^
+$map=@{a=1;i=1;j=1;q=1;y=1;b=2;k=2;r=2;c=3;g=3;l=3;s=3;d=4;m=4;t=4;e=5;h=5;n=5;x=5;u=6;v=6;w=6;o=7;z=7;f=8;p=8}; ^
+function Get-Root([int]$n){ while($n -gt 9){$sum=0; foreach($ch in ([string]$n).ToCharArray()){ $sum += [int][char]$ch - 48 }; $n=$sum }; return $n }; ^
+function Normalize([string]$s){ $s=$s.Normalize([Text.NormalizationForm]::FormD); $s=$s -replace '\p{Mn}',''; $s=$s -replace 'đ','d' -replace 'ð','d' -replace 'ŋ','n'; return ($s.ToLowerInvariant() -replace '[^a-z]','') }; ^
+$results=@(); ^
+foreach($ref in $refs){ $parts=$ref.Split('.'); $ch=[int]$parts[0]; $vr=[int]$parts[1]; try { $j=Invoke-RestMethod -Uri ('https://gita.ekrasworks.com/api/v1/verse/{0}/{1}' -f $ch,$vr) -TimeoutSec 20; $m=$j.mula; if(-not $m){$m=$j.'mūla'}; $iast=$m.iast; if(-not $iast){$iast=$m.transliteration}; $dev=$m.devanagari; if(-not $dev){$dev=$m.sanskrit}; if(-not $iast){throw 'IAST field not found in API response.'}; $norm=Normalize $iast; $total=0; foreach($letter in $norm.ToCharArray()){ $total += $map[[string]$letter] }; $root=Get-Root $total; $results += [pscustomobject]@{Verse=$ref;Devanagari=$dev;IAST=$iast;Normalized=$norm;Compound=$total;Root=$root} } catch { Write-Host ('FAILED ' + $ref + ': ' + $_.Exception.Message) -ForegroundColor Red } }; ^
+Write-Host ''; Write-Host 'BHAGAVAD GITA - CHEIRO / CHALDEAN ANALYSIS' -ForegroundColor Cyan; Write-Host ('Fetched verses: ' + $results.Count); Write-Host ''; ^
+foreach($r in $results){ Write-Host ('='*78); Write-Host ('BG ' + $r.Verse) -ForegroundColor Yellow; if($r.Devanagari){Write-Host $r.Devanagari}; Write-Host ('IAST: ' + $r.IAST); Write-Host ('Normalized: ' + $r.Normalized); Write-Host ('Compound: ' + $r.Compound + '    Root: ' + $r.Root) -ForegroundColor Green }; ^
+$results | Export-Csv -NoTypeInformation -Encoding UTF8 -Path (Join-Path (Get-Location) 'gita_cheiro_results.csv'); ^
+Write-Host ''; Write-Host 'Saved: gita_cheiro_results.csv' -ForegroundColor Cyan; Write-Host 'Source API: https://gita.ekrasworks.com/api/v1/verse/{chapter}/{verse}'; Read-Host 'Press Enter to exit'"
+
